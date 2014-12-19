@@ -1,0 +1,19 @@
+/* defaults */
+select {
+    display: none;
+}
+.select-it-container {
+    background-color: #E4E4E4;
+}
+.select-it-options-container {
+    display: none;
+}
+.select-it {
+    display: block;
+}
+.select-it-container > .select-it-options-container{
+    display: none;
+}
+.select-it-container.select-it-active .select-it-options-container{
+    display: block;
+}
