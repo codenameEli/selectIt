@@ -108,6 +108,48 @@
                 return final;
             },
 
+            getSelectedLabels: function()
+            {
+                var selected = [];
+
+                $(this.element).each(function(option) {
+                    if ( $(this).attr('selected') == 'true' ) {
+                        selected.push($(this).text());
+                    }
+                });
+
+                return selected;
+            },
+
+            createLabel: function()
+            {
+                var params = this.getUrlParams();
+                var label = this.settings.label;
+
+                if ( params == null ) { return label; }
+
+                var options = $(this.element).find('option');
+                var key = $( options[0] ).attr('data-param-key');
+                var set = params[key];
+                var selected = [];
+
+                options.each(function(i, option) {
+                    var value = $(this).attr('data-param-value');
+
+                    if ( set.indexOf( value ) !== -1 ) {
+                        selected.push($(this).text());
+                    }
+                });
+
+                if ( selected.length > 1 ) {
+                    label = selected.length + ' Selected';
+                } else {
+                    label = selected[0];
+                }
+
+                return label;
+            },
+
             setupSelectItElement: function()
             {
                 var label = this.settings.label.length === 0 ? this.settings.options[0] : this.settings.label;
@@ -118,7 +160,7 @@
 
                 var dropdownContainer = '';
                 dropdownContainer += '<div class="select-container">';
-                    dropdownContainer += '<label>' + label + '</label>';
+                    dropdownContainer += '<label>' + this.createLabel() + '</label>';
                     dropdownContainer += '<span class="dropdown-icon"></span>';
                 dropdownContainer += '</div>';
 
@@ -301,7 +343,7 @@
                 if ( params.length === 0 ) { return; }
 
                 var chunked = params.split('?')[1].split('&');
-                for ( i = 0; i < chunked.length; i++ ) {
+                for ( var i = 0; i < chunked.length; i++ ) {
                     var keyval = chunked[i].split('=');
                     var key = keyval[0];
                     var val = keyval[1];
