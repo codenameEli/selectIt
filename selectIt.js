@@ -15,6 +15,8 @@
                     dropdownOpened: 'select-it-dropdown-opened',
                     activeOption: 'active-option'
                 },
+                actAsFilters: true,
+                stateIcons: false,
                 elementAttributes: {},
                 onChange: function(){},
                 beforeInit: function(){},
@@ -109,8 +111,13 @@
             setupSelectItElement: function()
             {
                 var label = this.settings.label.length === 0 ? this.settings.options[0] : this.settings.label;
+
+                if ( this.settings.elementAttributes.select['data-default-label'] != null ) {
+                    label = this.settings.elementAttributes.select['data-default-label'];
+                }
+
                 var dropdownContainer = '';
-                dropdownContainer += '<div class="dropdown-container">';
+                dropdownContainer += '<div class="select-container">';
                     dropdownContainer += '<label>' + label + '</label>';
                     dropdownContainer += '<span class="dropdown-icon"></span>';
                 dropdownContainer += '</div>';
@@ -155,6 +162,11 @@
 
                 option += '>';
                 option += opt;
+
+                if ( this.settings.elementAttributes.select['data-multiselect'] != null && this.settings.stateIcons === true ) {
+                    option += '<span class="state-icon"></span>';
+                }
+
                 option += '</div>';
 
                 this.settings.afterCreateOption(attributes, opt, i);
@@ -227,7 +239,7 @@
             },
 
             offsetDropdownContainer: function($element) {
-                var $container = $element.find('.dropdown-container');
+                var $container = $element.find('.select-container');
                 var $dropdown = $('#select_it_dropdown_' + this.id);
                 var offset = $container[0].getBoundingClientRect();
 
@@ -240,6 +252,7 @@
                 this.offsetDropdownContainer($element);
 
                 $('.select-it-container').removeClass(this.settings.classes.dropdownOpened);
+                $('#select_it_' + this.id).addClass('state-open');
                 $('#select_it_dropdown_' + this.id).addClass('select-it-opened');
                 $('#select_it_dropdown_' + this.id).show();
             },
@@ -247,6 +260,7 @@
             closeDropdown: function(element)
             {
                 $('.select-it-container').removeClass(this.settings.classes.dropdownOpened);
+                $('.st-select-container').removeClass('state-open');
                 $('#select_it_dropdown_' + this.id).removeClass('select-it-opened');
                 $('#select_it_dropdown_' + this.id).hide();
             },
@@ -279,13 +293,100 @@
                 $(element).addClass(this.settings.classes.activeOption);
             },
 
+            getUrlParams: function()
+            {
+                var final = {};
+                var params = location.search;
+
+                if ( params.length === 0 ) { return; }
+
+                var chunked = params.split('?')[1].split('&');
+                for ( i = 0; i < chunked.length; i++ ) {
+                    var keyval = chunked[i].split('=');
+                    var key = keyval[0];
+                    var val = keyval[1];
+
+                    if ( /,/.test(val) ) {
+                        val = val.split(',');
+                    }
+
+                    final[key] = val;
+                }
+
+                return final;
+            },
+
+            flattenUrl: function(urlObj)
+            {
+                var url = '';
+                var keys = Object.keys(urlObj);
+                var sep = '&';
+
+                for ( i = 0; i < keys.length; i++ ) {
+                    url += i === 0 ? '?' : sep;
+                    url += keys[i];
+                    url += '=';
+                    url += urlObj[keys[i]].toString();
+                }
+
+                return url;
+            },
+
+            setUrlParams: function(key, val, selected)
+            {
+                var params = this.getUrlParams();
+
+                if ( selected == 'true'  ) { // Remove from the URL
+                    if ( params[key] == val ) { // is there any else is the URL?
+                        delete params[key];
+                    } else { // Just remove it
+                        params[key].splice( params[key].indexOf(val), 1 );
+                    }
+                } else {
+                    // does it exists in the URL yet?
+                    if ( params == null ) { // NO
+                        window.location.search = '?' + key + '=' + val;
+                        return;
+                    }
+
+                    if ( params[key] == null ) {
+                        params[key] = val;
+                    } else {
+
+                        if ( params[key] instanceof Array === false ) { // Make sure that its an array
+                            params[key] = [params[key]];
+                        }
+
+                        if ( params[key].indexOf(val) === -1 ) {
+                            params[key].push(val);
+                        } else {
+                            params[key].splice( params[key].indexOf(val), 1 );
+                        }
+                    }
+
+                }
+
+                window.location.search = this.flattenUrl(params);
+            },
+
+            changeTheUrl: function(el)
+            {
+                var key = el.getAttribute('data-param-key');
+                var val = el.getAttribute('data-param-value');
+                var selected = el.getAttribute('selected');
+
+                if ( key == null || val == null ) { return; }
+
+                this.setUrlParams(key, val, selected);
+            },
+
             attachListeners: function()
             {
                 var self = this;
                 var $element = $('#select_it_' + this.id);
                 var $dropdown = $('#select_it_dropdown_' + this.id);
 
-                $element.on('click', '.dropdown-container', function() {
+                $element.on('click', '.select-container', function() {
 
                     self.openBackdrop();
                     self.openDropdown($element);
@@ -293,12 +394,20 @@
 
                 $dropdown.on('click', '.option', function(ev) {
                     self.setActiveOption(this, $element);
-                    self.setActiveLabel(this);
+
+                    if ( self.settings.elementAttributes.select['data-default-label'] == null ) {
+                        self.setActiveLabel(this);
+                    }
+
                     self.syncSelectElement(this);
                     self.close();
 
                     if ( typeof self.settings.onChange === 'function' ) {
                         self.settings.onChange(this, ev, self);
+                    }
+
+                    if ( self.settings.actAsFilters == true ) {
+                        self.changeTheUrl(this, ev, self);
                     }
                 });
 
@@ -312,10 +421,8 @@
         // preventing against multiple instantiations
         $.fn[ pluginName ] = function( options ) {
             var id = 0;
-
             return this.each( function() {
                 if ( !$.data( this, "plugin_" + pluginName ) ) {
-                    console.log(this, options, id);
                     $.data( this, "plugin_" +
                         pluginName, new Plugin( this, options, id ) );
 
